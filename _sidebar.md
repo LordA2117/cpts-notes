@@ -1,3 +1,4 @@
 - [Home](README.md)
 - [Introduction](Introduction/README.md)
+- [Getting Started](Getting_Started/README.md)
 - [Checklist](checklist.md)
