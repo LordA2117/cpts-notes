@@ -106,3 +106,41 @@ Submit all solutions as per the questions.
 - Run gobuster directory bruteforce to find robots.txt
 - Go to this page and look into the source code.
 - Enter the credentials.
+
+
+## Public Exploits
+
+Once banner grabbing is done we can check for public exploits in different places.
+
+### Finding public Exploits
+
+- Google Search: Simplest and easiest. All you need to do is search `<something_app_name> exploit` on google and you can find stuff.
+- Searchsploit: You can use a tool like `searchsploit` to search for public exploits too. Syntax: `searchsploit <appname>`
+
+
+### Metasploit Primer
+
+- Metasploit framework is an all-in-one penetration testing framework that contains built in tools to enumerate, exploit and perform post-exploitation procedures on a target.
+- To start metasploit we do `msfconsole` on the terminal.
+- See the [checklist](checklist.md) for basic commands.
+- It is an essential tool but it's important not to rely solely on this.
+
+### Exercise
+
+- Nmap on the specified port reveals a **wordpress 5.6.1** site running on **apache 2.4.41**
+- We can see that the site is running **backup 2.7.10** so I checked for options in msfconsole using `search backup 2.7.10`
+- Only one option shows up so I did `use 0` or `use scanner/http/wp_simple_backup_file_read`.
+- So set the RHOSTS and RPORT accordingly using the `set RHOSTS <ip>` and `set RPORT <port>` command.
+- Then when you run the exploit it's vulnerable. It by default reads */etc/passwd* so I changed the FILEPATH option to */flag.txt*.
+- On running the exploit I got the flag. To read the flag file saved on the local machine, just use shell commands.
+
+
+## Types of Shells
+
+| Type of Shell | Method of Communication                                                                                                     |
+| ------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| Reverse Shell | Connects back to our system and gives us control through a reverse connection.                                              |
+| Bind Shell    | Waits for us to connect to it and gives us control once we do.                                                              |
+| Web Shell     | Communicates through a web server, accepts our commands through HTTP parameters, executes them, and prints back the output. |
+
+

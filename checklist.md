@@ -46,7 +46,31 @@
 - ffuf
 - [SecLists](https://github.com/danielmiessler/SecLists): A collection of wordlists (highly useful)
 
+## Metasploit Framework
+- Start it: `msfconsole`
+- Search for an Exploit: `search exploit <exploit_name>`
+- Once you use an exploit, we can use a scanner to verify that the target is vulnerable
+
+```bash
+msf6 exploit(windows/smb/ms17_010_psexec) > check
+
+[*] 10.10.10.40:445 - Using auxiliary/scanner/smb/smb_ms17_010 as check
+[+] 10.10.10.40:445       - Host is likely VULNERABLE to MS17-010! - Windows 7 Professional 7601 Service Pack 1 x64 (64-bit)
+[*] 10.10.10.40:445       - Scanned 1 of 1 hosts (100% complete)
+[+] 10.10.10.40:445 - The target is vulnerable.
+```
+
+- Use the `exploit` command to run the exploit
+
+## Shells
+
+- [RevShells.com](https://revshells.com/)
+- [Payload All The Things](https://swisskyrepo.github.io/InternalAllTheThings/)
 
 ## Privilege Escalation
 
 - SSH: Read local private keys or add our own public key.
+
+## Pentest Report
+
+- [Template](https://labs.hackthebox.com/storage/press/samplereport/sample-penetration-testing-report-template.pdf)
