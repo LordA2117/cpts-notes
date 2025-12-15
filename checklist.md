@@ -70,7 +70,33 @@ msf6 exploit(windows/smb/ms17_010_psexec) > check
 ## Privilege Escalation
 
 - SSH: Read local private keys or add our own public key.
+- Checklists:
+    - Windows: [HackTricks](https://book.hacktricks.wiki/en/linux-hardening/linux-privilege-escalation-checklist.html), [PayloadAllTheThings](https://github.com/swisskyrepo/PayloadsAllTheThings/blob/master/Methodology%20and%20Resources/Windows%20-%20Privilege%20Escalation.md).
+    - Linux: [HackTricks](https://book.hacktricks.wiki/en/linux-hardening/linux-privilege-escalation-checklist.html), [PayloadAllTheThings](https://github.com/swisskyrepo/PayloadsAllTheThings/blob/master/Methodology%20and%20Resources/Linux%20-%20Privilege%20Escalation.md)
+- Scripts:
+    - Linux: linpeas, LinEnum, linuxprivchecker
+    - Windows: winpeas, seatbelt, jaws
+- Searchsploit: Use it to find kernel exploits.
+- Inspect Installed Software:
+    - Check for installed software on linux using `dpkg -l`
+    - Check for the same on windows in the `C:\Programs` folder
+- Check user privileges
+- Vulnerable Binaries:
+    - Check for exploitable binaries on linux using [GTFOBins](https://gtfobins.github.io/)
+    - For windows use [LOLBAS](https://lolbas-project.github.io/#)
+- User Privileges:
+    - Exploit based on the output obtained from `sudo -l`
+- Scheduled Tasks:
+    - In Linux, CRON jobs run things periodically, this can be used to create our own job and run things as root.
+        - `/etc/crontab`
+        - `/etc/cron.d`
+        - `/var/spool/cron/crontabs/root`
+- Exposed Credentials:
+    - Check config, log or backup files. Usually the enumeration scripts find these for you.
+- SSH Keys:
+    - SSH Private keys can be used for privesc
 
 ## Pentest Report
 
 - [Template](https://labs.hackthebox.com/storage/press/samplereport/sample-penetration-testing-report-template.pdf)
+- [Report Creation Tool](https://docs.sysreptor.com/)

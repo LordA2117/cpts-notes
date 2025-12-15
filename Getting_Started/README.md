@@ -144,3 +144,51 @@ Once banner grabbing is done we can check for public exploits in different place
 | Web Shell     | Communicates through a web server, accepts our commands through HTTP parameters, executes them, and prints back the output. |
 
 
+## Privilege Escalation
+
+- Gain full system control (SYSTEM on windows and root on linux)
+
+### Checklists
+
+- Windows: [HackTricks](https://book.hacktricks.wiki/en/linux-hardening/linux-privilege-escalation-checklist.html), [PayloadAllTheThings](https://github.com/swisskyrepo/PayloadsAllTheThings/blob/master/Methodology%20and%20Resources/Windows%20-%20Privilege%20Escalation.md).
+- Linux: [HackTricks](https://book.hacktricks.wiki/en/linux-hardening/linux-privilege-escalation-checklist.html), [PayloadAllTheThings](https://github.com/swisskyrepo/PayloadsAllTheThings/blob/master/Methodology%20and%20Resources/Linux%20-%20Privilege%20Escalation.md)
+
+### Enumeration Scripts
+
+- Linux: linpeas, LinEnum, linuxprivchecker
+- Windows: winpeas, seatbelt, jaws
+
+### Kernel Exploits
+
+- Usually can be found by the enumeration scripts.
+- Searchsploit is also a good way to do this.
+
+### Vulnerable Software
+
+- Check for installed software on linux using `dpkg -l`
+- Check for the same on windows in the `C:\Programs` folder
+
+### User Privileges
+
+Common things to check for:
+    1. sudo (enumerate using `sudo -l`, execute commands as a specific user using the following `sudo -u user1 <command>`)
+    2. suid
+    3. Windows Token Privileges
+
+- Check for exploitable binaries on linux using [GTFOBins](https://gtfobins.github.io/)
+- For windows use [LOLBAS](https://lolbas-project.github.io/#)
+
+## Nibbles - HTB Machine
+
+### Enumeration
+
+I will use my own enumeration flows here, but I will mention what HTB did where necessary
+
+So we can do the full HTB flow that they did in just 2 steps:
+1. `sudo masscan <tgt> -e tun0 -p 1-65535,U:1-65535 --rate=1000`
+2. `sudo nmap -p- <tgt>`
+2. `sudo nmap -sC -sV -A <tgt> -oA nmap_results -p <comma_separated_open_ports>`
+
+### Web footprinting
+
+- Analyze page source
