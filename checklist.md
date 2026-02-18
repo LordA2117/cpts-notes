@@ -46,6 +46,9 @@
 - ffuf
 - [SecLists](https://github.com/danielmiessler/SecLists): A collection of wordlists (highly useful)
 
+- CeWL for generating wordlists by scraping the website, syntax: `cewl <url>`
+
+
 ## Metasploit Framework
 - Start it: `msfconsole`
 - Search for an Exploit: `search exploit <exploit_name>`
@@ -66,6 +69,16 @@ msf6 exploit(windows/smb/ms17_010_psexec) > check
 
 - [RevShells.com](https://revshells.com/)
 - [Payload All The Things](https://swisskyrepo.github.io/InternalAllTheThings/)
+
+### Full TTY from a reverse shell.
+
+```bash
+python3 -c "import pty; pty.spawn('/bin/bash')"
+```
+
+```bash
+script /dev/null -c /bin/bash
+```
 
 ## Privilege Escalation
 
