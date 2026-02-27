@@ -274,3 +274,9 @@ script /dev/null -c /bin/bash
 
 - Both of these yield full terminals. Check user.txt for the flag.
 
+## Nibbles - Privilege Escalation
+
+- Once we initial access, we see a `personal.zip` file.
+- On unzipping it we get a monitor.sh file with sudo permissions (just run `sudo -l`).
+- Since it's writable, we will simply add a `/bin/bash` line
+- Run this script using sudo and we get root.
