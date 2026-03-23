@@ -222,3 +222,50 @@ nc -nv 10.129.2.28 25 # Do this in another terminal
 - Use nmap service enumeration to get the banners.
 - If that doesn't happen use the tcpdump netcat method (I didn't do this).
 - After getting all the flags, I saw port 31337 open which was FTP. So I used ftp to connect to it and get the flag (it just sends it over).
+
+## Nmap Scripting Engine
+
+- Create scripts with lua to do more stuff. Script categories are shown in the below table.
+
+| Category | Description |
+| :--- | :--- |
+| **auth** | Determination of authentication credentials. |
+| **broadcast** | Scripts, which are used for host discovery by broadcasting and the discovered hosts, can be automatically added to the remaining scans. |
+| **brute** | Executes scripts that try to log in to the respective service by brute-forcing with credentials. |
+| **default** | Default scripts executed by using the `-sC` option. |
+| **discovery** | Evaluation of accessible services. |
+| **dos** | These scripts are used to check services for denial of service vulnerabilities and are used less as it harms the services. |
+| **exploit** | This category of scripts tries to exploit known vulnerabilities for the scanned port. |
+| **external** | Scripts that use external services for further processing. |
+| **fuzzer** | This uses scripts to identify vulnerabilities and unexpected packet handling by sending different fields, which can take much time. |
+| **intrusive** | Intrusive scripts that could negatively affect the target system. |
+| **malware** | Checks if some malware infects the target system. |
+| **safe** | Defensive scripts that do not perform intrusive and destructive access. |
+| **version** | Extension for service detection. |
+| **vuln** | Identification of specific vulnerabilities. |
+
+
+- Different nmap functions are here:
+
+| Function | Flag |
+| :---: | :--- |
+| Default Scripts | -sC |
+| Specific Script Category | --script category |
+| Defined Scripts | --script script1,script2 |
+| Aggressive Scan | -A |
+| vuln script for checking common vulnerabilities | --script vuln |
+
+### Exercise solution
+
+- Use my flow (see cheatsheet or previous sections to get that) to get all open ports.
+- Do some fuzzing on the webserver (port 80) and flag will be in robots.txt
+
+
+## Performance
+
+| Function | Flag | Description |
+| :---: | :---: | :---: |
+| Optimized RTT | --initial-rtt-timeout init_time_in_ms --max-rtt-timeout max_time_in_ms | When Nmap sends a packet, it takes some time (Round-Trip-Time - RTT) to receive a response from the scanned port. Generally, Nmap starts with a high timeout (--min-RTT-timeout) of 100ms. |
+| Max Retries | --max-retries max_retries_count | Another way to increase scan speed is by specifying the retry rate of sent packets (--max-retries). The default value is 10, but we can reduce it to 0. This means if Nmap does not receive a response for a port, it won't send any more packets to that port and will skip it. |
+| Rates | --min-rate rate_limit_min | Limits the rate of packets sent to meet any possible constraints, either while pentesting or other environmental conditions like bandwidth |
+| Timings | -T 0-5 | Nmap offers 5 different timing templates to use. It starts from 0 (paranoid) to 5 (insane). |
