@@ -6,6 +6,7 @@
     - Information that provides us with even more important information to access our target.
 - Manual enumeration is **VERY IMPORTANT**
 - Many scanning tools automate things, but they cannot always bypass security measures of services.
+- The key here however, is to learn more about the service and how to interact with it, which will reveal more pathways.
 
 
 ## Intro to Nmap
@@ -269,3 +270,34 @@ nc -nv 10.129.2.28 25 # Do this in another terminal
 | Max Retries | --max-retries max_retries_count | Another way to increase scan speed is by specifying the retry rate of sent packets (--max-retries). The default value is 10, but we can reduce it to 0. This means if Nmap does not receive a response for a port, it won't send any more packets to that port and will skip it. |
 | Rates | --min-rate rate_limit_min | Limits the rate of packets sent to meet any possible constraints, either while pentesting or other environmental conditions like bandwidth |
 | Timings | -T 0-5 | Nmap offers 5 different timing templates to use. It starts from 0 (paranoid) to 5 (insane). |
+
+
+## Firewall and IDS/IPS Evasion
+
+| Function | Flag | Description | Usage |
+| :---: | :---: | :---: | :---: |
+| Ack Scan | -sA | Send a TCP with only the ACK flag, firewalls can't usually determine if the connection was first established from the external or internal network. | `nmap -sA --disable-arp-ping <ip>` |
+| Decoys | -D | Create a random number of Decoy IPs, essentially spoofing our IP to the target | `sudo nmap 10.129.2.28 -p 80 -sS -Pn -n --disable-arp-ping --packet-trace -D RND:5` |
+| Spoof Source IP | -S | Spoofs the source IP | `sudo nmap 10.129.2.28 -n -Pn -p 445 -O -S 10.129.2.200 -e tun0` |
+| DNS Proxying | --dns-server | allows us to specify a dns server, especially useful when we happen to know the company's DNS server since IDS/IPS usually trusts em | - |
+| Source Port | --source-port | Allows us to specify the source port of our scans, try using 53 for spoofing a DNS request | sudo nmap 10.129.2.28 -p50000 -sS -Pn -n --disable-arp-ping --packet-trace --source-port 53 |
+
+## Easy lab solution
+
+```bash
+sudo nmap -sA -PE --disable-arp-ping -O <ip>
+```
+
+## Medium Lab Solution
+
+```bash
+sudo nmap -PE 10.129.2.48 -sV -sU -p 53 --disable-arp-ping --stats-every=3s
+```
+
+NOTE: This thing returns a custom HTB{something_something} flag, which is the answer (kinda gay).
+
+## Hard Lab Solution
+
+```bash
+sudo nmap -g53 --max-retries=1 -Pn -p- --disable-arp-ping <ip>
+```
