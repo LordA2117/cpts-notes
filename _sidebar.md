@@ -2,4 +2,5 @@
 - [Introduction](Introduction/README.md)
 - [Getting Started](Getting_Started/README.md)
 - [Nmap Enumeration](nmap/README.md)
+- [Footprinting](footprinting/README.md)
 - [Checklist](checklist.md)
