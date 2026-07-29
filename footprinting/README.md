@@ -442,3 +442,192 @@ ls -n mnt/nfs/ # Contents with UIDs and GUIDs
 
 - If root_squash is set, the files cannot be edited.
 - Unmounting: `sudo umount ./target-NFS`
+
+## DNS
+
+- Full Form: Domain Name System
+
+| **Server Type**                  | **Description**                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **DNS Root Server**              | The root servers of the DNS are responsible for the top-level domains (TLDs). As the last instance, they are only requested if the name server does not respond. Thus, a root server is a central interface between users and content on the Internet, as it links domain names and IP addresses. The Internet Corporation for Assigned Names and Numbers (ICANN) coordinates the work of the root name servers. There are 13 such root servers around the globe.         |
+| **Authoritative Nameserver**     | Authoritative name servers hold authority for a particular DNS zone. They only answer queries for their area of responsibility, and their information is considered authoritative. If an authoritative name server cannot answer a client's query, the root name server helps direct the request. Based on the domain, organization, or country, authoritative nameservers provide answers to recursive DNS nameservers, assisting in locating the correct web server(s). |
+| **Non-authoritative Nameserver** | Non-authoritative name servers are not responsible for a particular DNS zone. Instead, they obtain information about DNS zones by performing recursive or iterative DNS queries and return cached or retrieved results to clients.                                                                                                                                                                                                                                        |
+| **Caching DNS Server**           | Caching DNS servers temporarily store DNS information obtained from other name servers for a specified period, reducing lookup time for repeated requests. The authoritative name server determines the cache duration using the Time to Live (TTL) value.                                                                                                                                                                                                                |
+| **Forwarding Server**            | Forwarding servers perform a single function: they forward DNS queries to another DNS server, typically a recursive resolver, instead of resolving the queries themselves.                                                                                                                                                                                                                                                                                                |
+| **Resolver**                     | Resolvers are not authoritative DNS servers but perform domain name resolution locally on a computer, router, or operating system by sending DNS queries to appropriate DNS servers and returning the corresponding IP addresses.                                                                                                                                                                                                                                         |
+- DNS is unencrypted
+- DNS Records:
+
+| **DNS Record** | **Description**                                                                                                                                                                                                                                        |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **A**          | Returns the IPv4 address associated with the requested domain name.                                                                                                                                                                                    |
+| **AAAA**       | Returns the IPv6 address associated with the requested domain name.                                                                                                                                                                                    |
+| **MX**         | Specifies the mail server(s) responsible for receiving email on behalf of the domain.                                                                                                                                                                  |
+| **NS**         | Identifies the authoritative DNS name servers for the domain.                                                                                                                                                                                          |
+| **TXT**        | Stores arbitrary text information. Common uses include domain ownership verification (e.g., Google Search Console), SSL certificate validation, and email authentication records such as SPF, DKIM, and DMARC to help prevent spam and email spoofing. |
+| **CNAME**      | Creates an alias for another domain name. For example, if `www.example.com` should point to the same IP address as `example.com`, you create an **A** record for `example.com` and a **CNAME** record for `www.example.com`.                           |
+| **PTR**        | Used for reverse DNS lookups by mapping an IP address back to its corresponding domain name.                                                                                                                                                           |
+| **SOA**        | The **Start of Authority (SOA)** record provides administrative information about the DNS zone, including the primary nameserver, the email address of the administrator, the zone serial number, and DNS synchronization timers.                      |
+
+### Default Configuration
+
+- 3 types configuration files:
+    - local DNS config files
+    - zone files
+    - reverse name resolution files
+- Usually the DNS server Bind9 is used in linux distros.
+- Usual configuration files are `named.conf`, `named.conf.local`, `named.conf.options`, `named.conf.log`.
+
+```bash
+root@bind9:~# cat /etc/bind/named.conf.local
+
+//
+// Do any local configuration here
+//
+
+// Consider adding the 1918 zones here, if they are not used in your
+// organization
+//include "/etc/bind/zones.rfc1918";
+zone "domain.com" {
+    type master;
+    file "/etc/bind/db.domain.com";
+    allow-update { key rndc-key; };
+};
+```
+
+- Reverse name resolution zone files
+
+```bash
+root@bind9:~# cat /etc/bind/db.10.129.14
+
+;
+; BIND reverse data file for local loopback interface
+;
+$ORIGIN 14.129.10.in-addr.arpa
+$TTL 86400
+@     IN     SOA    dns1.domain.com.     hostmaster.domain.com. (
+                    2001062501 ; serial
+                    21600      ; refresh after 6 hours
+                    3600       ; retry after 1 hour
+                    604800     ; expire after 1 week
+                    86400 )    ; minimum TTL of 1 day
+
+      IN     NS     ns1.domain.com.
+      IN     NS     ns2.domain.com.
+
+5    IN     PTR    server1.domain.com.
+7    IN     MX     mx.domain.com.
+...SNIP...
+```
+
+### Dangerous Settings
+
+- Look at [this resource](https://www.cvedetails.com/product/144/ISC-Bind.html?vendor_id=64) for a list of vulns targeting bind9.
+- Look at [this archive](https://web.archive.org/web/20250329174745/https://securitytrails.com/blog/most-popular-types-dns-attacks) by SecurityTrails for the most popular attacks on DNS servers.
+
+
+| **Option**          | **Description**                                                                                    |
+| ------------------- | -------------------------------------------------------------------------------------------------- |
+| **allow-query**     | Specifies which hosts or networks are permitted to send DNS queries to the server.                 |
+| **allow-recursion** | Specifies which hosts or networks are allowed to perform recursive DNS queries through the server. |
+| **allow-transfer**  | Specifies which hosts or DNS servers are permitted to receive DNS zone transfers from the server.  |
+| **zone-statistics** | Enables the collection of statistical data and performance metrics for DNS zones.                  |
+
+
+### Footprinting DNS
+
+- dig ns query:
+
+```bash
+dig ns inlanefreight.htb @10.129.14.128
+```
+
+- dig version query:
+
+```bash
+dig CH TXT version.bind 10.129.120.85
+```
+
+- dig any query:
+
+```bash
+dig any inlanefreight.htb @10.129.14.128
+```
+
+- Zone Transfer: Transfer of zones to another server in DNS, usually happens over port 53.
+
+- dig axfr zone transfer:
+
+```bash
+dig axfr inlanefreight.htb @10.129.14.128
+```
+
+- Subdomain bruteforcing: Multiple ways
+
+1. ffuf:
+
+```bash
+ffuf -u https://example.com -H "Host: FUZZ.example.com" -w wordlist.txt -ac
+```
+
+2. bash
+
+```bash
+LordA2117@htb[/htb]$ for sub in $(cat /opt/useful/seclists/Discovery/DNS/subdomains-top1million-110000.txt);do dig $sub.inlanefreight.htb @10.129.14.128 | grep -v ';\|SOA' | sed -r '/^\s*$/d' | grep $sub | tee -a subdomains.txt;done
+
+ns.inlanefreight.htb.   604800  IN      A       10.129.34.136
+mail1.inlanefreight.htb. 604800 IN      A       10.129.18.201
+app.inlanefreight.htb.  604800  IN      A       10.129.18.15
+```
+
+3. DNSEnum
+
+```bash
+LordA2117@htb[/htb]$ dnsenum --dnsserver 10.129.14.128 --enum -p 0 -s 0 -o subdomains.txt -f /opt/useful/seclists/Discovery/DNS/subdomains-top1million-110000.txt inlanefreight.htb
+
+dnsenum VERSION:1.2.6
+
+-----   inlanefreight.htb   -----
+
+
+Host's addresses:
+__________________
+
+
+
+Name Servers:
+______________
+
+ns.inlanefreight.htb.                    604800   IN    A        10.129.34.136
+
+
+Mail (MX) Servers:
+___________________
+
+
+
+Trying Zone Transfers and getting Bind Versions:
+_________________________________________________
+
+unresolvable name: ns.inlanefreight.htb at /usr/bin/dnsenum line 900 thread 1.
+
+Trying Zone Transfer for inlanefreight.htb on ns.inlanefreight.htb ...
+AXFR record query failed: no nameservers
+
+
+Brute forcing with /home/cry0l1t3/Pentesting/SecLists/Discovery/DNS/subdomains-top1million-110000.txt:
+_______________________________________________________________________________________________________
+
+ns.inlanefreight.htb.                    604800   IN    A        10.129.34.136
+mail1.inlanefreight.htb.                 604800   IN    A        10.129.18.201
+app.inlanefreight.htb.                   604800   IN    A        10.129.18.15
+ns.inlanefreight.htb.                    604800   IN    A        10.129.34.136
+
+...SNIP...
+done.
+```
+
+### Exercise Tips
+
+- Perform all operations on every subdomain.
+- A subdomain might have subdomains so fuzz out those as well.
