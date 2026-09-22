@@ -272,7 +272,7 @@ LordA2117@htb[/htb]$ cat /etc/samba/smb.conf | grep -v "#\|\;"
 - Downloading a file: `get <file>`
 - Check Status: `smbstatus`
 
-### Foorprinting SMB
+### Footprinting SMB
 
 - Nmap: `nmap 10.129.14.128 -sV -sC -p139,445`
 - RPCClient: `rpcclient -U "" 10.129.14.128` (look at man page for more details)
@@ -631,3 +631,249 @@ done.
 
 - Perform all operations on every subdomain.
 - A subdomain might have subdomains so fuzz out those as well.
+
+## SMTP
+
+- Sending emails in an IP network.
+- Port 25 or Port 487
+- Supports SSL/TLS
+- SMTP Client: Mail User Agent (MUA)
+- Mail Transfer Agent (MTA): Software to send ans receive emails
+- Mail Submission Agent (MSA): Checks validity/origin of the mail
+- Look up smtp [here](https://www.samlogic.net/articles/smtp-commands-reference.htm)
+
+### Configuration
+
+| **Command** | **Description** |
+| --- | --- |
+| **AUTH PLAIN** | AUTH is a service extension used to authenticate the client. |
+| **HELO** | The client logs in with its computer name and thus starts the session. |
+| **MAIL FROM** | The client names the email sender. |
+| **RCPT TO** | The client names the email recipient. |
+| **DATA** | The client initiates the transmission of the email. |
+| **RSET** | The client aborts the initiated transmission but keeps the connection between client and server. |
+| **VRFY** | The client checks if a mailbox is available for message transfer. |
+| **EXPN** | The client also checks if a mailbox is available for messaging with this command. |
+| **NOOP** | The client requests a response from the server to prevent disconnection due to time-out. |
+| **QUIT** | The client terminates the session. |
+
+- TELNET - ELHO/HELO:
+
+```bash
+LordA2117@htb[/htb]$ telnet 10.129.14.128 25
+
+Trying 10.129.14.128...
+Connected to 10.129.14.128.
+Escape character is '^]'.
+220 ESMTP Server 
+
+
+HELO mail1.inlanefreight.htb
+
+250 mail1.inlanefreight.htb
+
+
+EHLO mail1
+
+250-mail1.inlanefreight.htb
+250-PIPELINING
+250-SIZE 10240000
+250-ETRN
+250-ENHANCEDSTATUSCODES
+250-8BITMIME
+250-DSN
+250-SMTPUTF8
+250 CHUNKING
+```
+
+- Telnet - VRFY: Verify users on the system
+
+```bash
+VRFY root
+
+252 2.0.0 root
+
+
+VRFY cry0l1t3
+
+252 2.0.0 cry0l1t3
+
+
+VRFY testuser
+
+252 2.0.0 testuser
+```
+
+> Note: Sometimes we may have to work through a web proxy. We can also make this web proxy connect to the SMTP server. The command that we would send would then look something like this: CONNECT 10.129.14.128:25 HTTP/1.0
+
+### Dangerous Settings
+
+- Open Relay Configuration: `0.0.0.0/0`, this setting allows servers to send fake emails, also allows to spoof and read emails.
+
+### Footprinting
+
+- Default: `sudo nmap 10.129.14.128 -sC -sV -p25`
+- Open Relay: `sudo nmap 10.129.14.128 -p25 --script smtp-open-relay -v`
+
+### Exercise Solution
+
+1. Connect to port 25 using netcat and try running some command (I ran ELHO), the banner will show
+2. Use smtp_enum in msfconsole, plus the provided wordlist in the resources.
+
+
+## IMAP / POP3
+
+- Imap: 143/993
+- Pop3: 110/995
+
+### IMAP Commands
+
+| Command | Description |
+| --- | --- |
+| `1 LOGIN username password` | User's login. |
+| `1 LIST "" *` | Lists all directories. |
+| `1 CREATE "INBOX"` | Creates a mailbox with a specified name. |
+| `1 DELETE "INBOX"` | Deletes a mailbox. |
+| `1 RENAME "ToRead" "Important"` | Renames a mailbox. |
+| `1 LSUB "" *` | Returns a subset of names from the set of names that the User has declared as being active or subscribed. |
+| `1 SELECT INBOX` | Selects a mailbox so that messages in the mailbox can be accessed. |
+| `1 UNSELECT INBOX` | Exits the selected mailbox. |
+| `1 FETCH <ID> all` | Retrieves data associated with a message in the mailbox. |
+| `1 CLOSE` | Removes all messages with the Deleted flag set. |
+| `1 LOGOUT` | Closes the connection with the IMAP server. |
+
+
+### POP3 Commands
+
+| Command | Description |
+| --- | --- |
+| `USER username` | Identifies the user. |
+| `PASS password` | Authentication of the user using its password. |
+| `STAT` | Requests the number of saved emails from the server. |
+| `LIST` | Requests from the server the number and size of all emails. |
+| `RETR id` | Requests the server to deliver the requested email by ID. |
+| `DELE id` | Requests the server to delete the requested email by ID. |
+| `CAPA` | Requests the server to display the server capabilities. |
+| `RSET` | Requests the server to reset the transmitted information. |
+| `QUIT` | Closes the connection with the POP3 server. |
+
+### Dangerous Settings
+
+| Setting | Description |
+| --- | --- |
+| `auth_debug` | Enables all authentication debug logging. |
+| `auth_debug_passwords` | This setting adjusts log verbosity; submitted passwords and the authentication scheme are logged. |
+| `auth_verbose` | Logs unsuccessful authentication attempts and their reasons. |
+| `auth_verbose_passwords` | Passwords used for authentication are logged and can also be truncated. |
+| `auth_anonymous_username` | Specifies the username to be used when logging in with the `ANONYMOUS` SASL mechanism. |
+
+### Footprinting
+
+- Nmap: 
+
+```bash
+sudo nmap 10.129.14.128 -sV -p110,143,993,995 -sC
+```
+
+- cURL:
+
+```bash
+curl -k 'imaps://10.129.14.128' --user user:p4ssw0rd
+```
+
+- openSSL TLS POP3:
+
+```bash
+openssl s_client -connect 10.129.14.128:pop3s
+```
+
+- openSSL TLS IMAP:
+
+```bash
+openssl s_client -connect 10.129.14.128:imaps
+```
+
+### Exercise Solutions
+
+1. see nmap results with `-sC -sV -A`
+2. see nmap results with `-sC -sV -A`
+3. `openssl s_client -connect <ip>:imaps`
+4. `openssl s_client -connect <ip>:pop3s`
+5. Steps:
+    - Login to the mailbox
+    - `A1 LIST "" *` -> List all mailboxes
+    - `A1 SELECT DEV.DEPARTMENT.INT *` -> Select the *dev.department.int* mailbox
+    - `A1 UID FETCH 1:*` -> check if mail of UID 1 exists
+    - `A1 FETCH 1 all ` -> Fetch headers of mail of UID 1 (contains the email)
+6. Follow all steps of question 4 and then do `A1 FETCH 1 body[text]`
+
+## SNMP
+
+- Port: UDP 161 (traps over port 162)
+- MIB: Management Information Base, an independent format for storing device information. Written in ASN.1 (Abstract Sytax Notation One)
+- OID: a unique sequence of numbers identifying the position of a node in the tree
+- SNMPv1: 
+    - No auth
+    - no encryption
+- SNMPv2: 
+    - Security via community string
+    - No encryption
+- SNMPv3: 
+    - Support auth
+    - username and password transmission via encryption (via pre-shared key, PSK)
+- Community Strings: A password-like mechanism used to determine authentication
+
+### Default Configuration
+
+```bash
+LordA2117@htb[/htb]$ cat /etc/snmp/snmpd.conf | grep -v "#" | sed -r '/^\s*$/d'
+
+sysLocation    Sitting on the Dock of the Bay
+sysContact     Me <me@example.org>
+sysServices    72
+master  agentx
+agentaddress  127.0.0.1,[::1]
+view   systemonly  included   .1.3.6.1.2.1.1
+view   systemonly  included   .1.3.6.1.2.1.25.1
+rocommunity  public default -V systemonly
+rocommunity6 public default -V systemonly
+rouser authPrivUser authpriv -V systemonly
+```
+
+> See the [manpage](http://www.net-snmp.org/docs/man/snmpd.conf.html) for more details
+
+### Dangerous Settings
+
+| Settings | Description |
+| --- | --- |
+| `rwuser noauth` | Provides access to the full OID tree without authentication. |
+| `rwcommunity <community string> <IPv4 address>` | Provides access to the full OID tree regardless of where the requests were sent from. |
+| `rwcommunity6 <community string> <IPv6 address>` | Same access as with `rwcommunity` with the difference of using IPv6. |
+
+### Footprinting the Service
+
+- snmpwalk:
+
+```bash
+snmpwalk -v2c -c public 10.129.14.128
+```
+
+- onesixtyone:
+
+```bash
+LordA2117@htb[/htb]$ sudo apt install onesixtyone
+LordA2117@htb[/htb]$ onesixtyone -c /opt/useful/seclists/Discovery/SNMP/snmp.txt 10.129.14.128
+```
+
+- braa:
+
+```bash
+LordA2117@htb[/htb]$ sudo apt install braa
+LordA2117@htb[/htb]$ braa <community string>@<IP>:.1.3.6.*   # Syntax
+LordA2117@htb[/htb]$ braa public@10.129.14.128:.1.3.6.*
+```
+
+### Exercise
+1. Connect to the snmp service snmpwalk.
+2. Connect to the snmp service snmpwalk.
+3. Connect to the snmp service snmpwalk and let it run for a while.
