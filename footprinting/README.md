@@ -877,3 +877,132 @@ LordA2117@htb[/htb]$ braa public@10.129.14.128:.1.3.6.*
 1. Connect to the snmp service snmpwalk.
 2. Connect to the snmp service snmpwalk.
 3. Connect to the snmp service snmpwalk and let it run for a while.
+
+
+## MySQL
+
+- Works according to the `client-server` model
+- Primarily in `LAMP` stack
+
+
+### Default Configuration
+
+```
+[client]
+port        = 3306
+socket      = /var/run/mysqld/mysqld.sock
+
+[mysqld_safe]
+pid-file    = /var/run/mysqld/mysqld.pid
+socket      = /var/run/mysqld/mysqld.sock
+nice        = 0
+
+[mysqld]
+skip-host-cache
+skip-name-resolve
+user        = mysql
+pid-file    = /var/run/mysqld/mysqld.pid
+socket      = /var/run/mysqld/mysqld.sock
+port        = 3306
+basedir     = /usr
+datadir     = /var/lib/mysql
+tmpdir      = /tmp
+lc-messages-dir = /usr/share/mysql
+explicit_defaults_for_timestamp
+
+symbolic-links=0
+
+!includedir /etc/mysql/conf.d/
+```
+
+### Dangerous Settings
+
+| Setting | Description |
+| --- | --- |
+| `user` | Sets which user the MySQL service will run as. |
+| `password` | Sets the password for the MySQL user. |
+| `admin_address` | The IP address on which to listen for TCP/IP connections on the administrative network interface. |
+| `debug` | This variable indicates the current debugging settings. |
+| `sql_warnings` | This variable controls whether single-row `INSERT` statements produce an information string if warnings occur. |
+| `secure_file_priv` | This variable is used to limit the effect of data import and export operations. |
+
+
+### Footprinting the Service
+
+- nmap:
+
+```bash
+sudo nmap 10.129.14.128 -sV -sC -p3306 --script mysql*
+```
+
+- Interact with MySQL Server:
+
+```bash
+$ mysql -u root -h 10.129.14.132
+$ mysql -u root -pP4SSw0rd -h 10.129.14.128
+```
+
+### Exercise
+
+1. run nmap on port 3306
+2. Commands: 
+    - `mysql -u robin -probin -h 10.129.223.234 --ssl-verify-server-cert=false`
+    - `use customers;`
+    - `select name,email from myTable;`
+
+## MSSQL
+
+- Microsoft's flavor of SQL
+- Clients:
+    - Use `impacket-mssqlclient`
+
+### Default Databases
+
+| Default System Database | Description |
+| --- | --- |
+| **master** | Tracks all system information for an SQL Server instance |
+| **model** | Template database that acts as a structure for every new database created. Any setting changed in the model database will be reflected in any new database created after the changes to the model database |
+| **msdb** | The SQL Server Agent uses this database to schedule jobs & alerts |
+| **tempdb** | Stores temporary objects |
+| **resource** | Read-only database containing system objects included with SQL Server |
+
+- [Source](https://docs.microsoft.com/en-us/sql/relational-databases/databases/system-databases?view=sql-server-ver15)
+
+
+### Default Configuration
+
+- Likely the service will run as `NT SERVICE\MSSQLSERVER`.
+- Connection is usually possible via windows auth, but encryption is not enforced when attempting to connect.
+- Windows auth means that it will either use the `SAM` database or the domain controller (the active directory host).
+
+### Dangerous Settings
+
+- MSSQL clients not using encryption to connect to the MSSQL server
+- The use of self-signed certificates when encryption is being used. It is possible to spoof self-signed certificates
+- The use of named pipes
+- Weak & default sa credentials. Admins may forget to disable this account
+
+### Footprinting
+
+- nmap:
+
+```bash
+sudo nmap --script ms-sql-info,ms-sql-empty-password,ms-sql-xp-cmdshell,ms-sql-config,ms-sql-ntlm-info,ms-sql-tables,ms-sql-hasdbaccess,ms-sql-dac,ms-sql-dump-hashes --script-args mssql.instance-
+```
+
+- Metasploit:
+
+```bash
+msf6 auxiliary(scanner/mssql/mssql_ping) > set rhosts 10.129.201.248
+```
+
+- impacket:
+
+```bash
+impacket-mssqlclient Administrator@10.129.201.248 -windows-auth
+```
+
+### Exercise
+
+1. Run nmap
+2. Connect using impacket and then `EXEC sp_databases;`
