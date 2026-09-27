@@ -1302,3 +1302,193 @@ msf6 auxiliary(scanner/ipmi/ipmi_dumphashes) > run
 
 1. Use ipmi_dumphashes to get the username and hashed password.
 2. Crack the passwords using hashcat `hashcat -m 7300 -a 0 ipmi.txt /usr/share/wordlists/rockyou.txt`
+
+
+## Linux Remote Management Protocols
+
+### SSH
+
+- Port 22
+- Runs on all OS
+- SSH-2 is more advanced than SSH-1, for example it isn't vulnerable to MITM attacks unlike its predecessor.
+- Authentication Methods:
+    - Password
+    - Public Key 
+    - Host-based
+    - Keyboard
+    - Challenge Response
+    - GSSAPI
+
+- Public Key Authentication:
+    - Server sends its **public host key** to the client, which verifies its Integrity.
+    - Client verifies by using a password, whose hash the server possesses.
+    - Private key is in the user's computer and secured with a passphrase.
+    - public keys are stored on the server.
+
+#### Default Configuration
+
+```bash
+LordA2117@htb[/htb]$ cat /etc/ssh/sshd_config  | grep -v "#" | sed -r '/^\s*$/d'
+
+Include /etc/ssh/sshd_config.d/*.conf
+ChallengeResponseAuthentication no
+UsePAM yes
+X11Forwarding yes
+PrintMotd no
+AcceptEnv LANG LC_*
+Subsystem       sftp    /usr/lib/openssh/sftp-server
+```
+
+| Setting | Description |
+| --- | --- |
+| `PasswordAuthentication yes` | Allows password-based authentication. |
+| `PermitEmptyPasswords yes` | Allows the use of empty passwords. |
+| `PermitRootLogin yes` | Allows login as the root user. |
+| `Protocol 1` | Uses an outdated version of encryption. |
+| `X11Forwarding yes` | Allows X11 forwarding for GUI applications. |
+| `AllowTcpForwarding yes` | Allows forwarding of TCP ports. |
+| `PermitTunnel` | Allows tunneling. |
+| `DebianBanner yes` | Displays a specific banner when logging in. |
+
+- Password auth allows us to bruteforce credentials with special `patterns`, which take known passwords and mutate them, which have a very high accuracy.
+
+#### Footprinting The Service
+
+- SSH-Audit:
+
+```bash
+LordA2117@htb[/htb]$ git clone https://github.com/jtesta/ssh-audit.git && cd ssh-audit
+LordA2117@htb[/htb]$ ./ssh-audit.py 10.129.14.132
+```
+
+- Change Authentication Method:
+
+```bash
+ssh -v cry0l1t3@10.129.14.132
+ssh -v cry0l1t3@10.129.14.132 -o PreferredAuthentications=password # Password is set to be the preferred authentication
+```
+
+### Rsync
+
+- Port 873
+- [Pentesting Guide](https://hacktricks.wiki/en/network-services-pentesting/873-pentesting-rsync.html)
+- Discovery using nmap:
+
+```bash
+sudo nmap -sV -p 873 127.0.0.1
+```
+
+- Searching for accessible shares:
+
+```bash
+nc -nv 127.0.0.1 873
+
+(UNKNOWN) [127.0.0.1] 873 (rsync) open
+@RSYNCD: 31.0
+@RSYNCD: 31.0
+#list
+dev             Dev Tools
+@RSYNCD: EXIT
+```
+
+- Enumerating an open share:
+
+```bash
+LordA2117@htb[/htb]$ rsync -av --list-only rsync://127.0.0.1/dev
+
+receiving incremental file list
+drwxr-xr-x             48 2022/09/19 09:43:10 .
+-rw-r--r--              0 2022/09/19 09:34:50 build.sh
+-rw-r--r--              0 2022/09/19 09:36:02 secrets.yaml
+drwx------             54 2022/09/19 09:43:10 .ssh
+
+sent 25 bytes  received 221 bytes  492.00 bytes/sec
+total size is 0  speedup is 0.00
+```
+
+### R-Services
+
+- Ports: 512, 513, 514
+- R-Commands:
+    - rcp (remote copy)
+    - rexec (remote execution)
+    - rlogin (remote login)
+    - rsh (remote shell)
+    - rstat
+    - rsupreme
+    - ruptime
+    - rwho (remote who)
+
+| Command | Service Daemon | Port | Transport Protocol | Description |
+| --- | --- | --- | --- | --- |
+| **rcp** | `rshd` | 514 | TCP | Copies a file or directory bidirectionally between the local and remote systems, or between two remote systems. Similar to `cp` on Linux, but provides no warning when overwriting existing files. |
+| **rsh** | `rshd` | 514 | TCP | Opens a shell on a remote machine without a login procedure. Relies on trusted entries in `/etc/hosts.equiv` and `.rhosts` for validation. |
+| **rexec** | `rexecd` | 512 | TCP | Enables a user to run shell commands on a remote machine. Requires username/password authentication over an unencrypted network socket. Authentication can be overridden by trusted entries in `/etc/hosts.equiv` and `.rhosts`. |
+| **rlogin** | `rlogind` | 513 | TCP | Enables a user to log in to a remote host over the network. Similar to Telnet but intended for Unix-like hosts. Authentication can be overridden by trusted entries in `/etc/hosts.equiv` and `.rhosts`. |
+
+- /etc/hosts.equiv: contains a list of trusted hosts and grants access to other systems on the network.
+
+```bash
+LordA2117@htb[/htb]$ cat /etc/hosts.equiv
+
+# <hostname> <local username>
+pwnbox cry0l1t3
+```
+
+- Scanning for r-services with nmap:
+
+```bash
+sudo nmap -sV -p 512,513,514 10.0.17.2
+
+Starting Nmap 7.80 ( https://nmap.org ) at 2022-12-02 15:02 EST
+Nmap scan report for 10.0.17.2
+Host is up (0.11s latency).
+
+PORT    STATE SERVICE    VERSION
+512/tcp open  exec?
+513/tcp open  login?
+514/tcp open  tcpwrapped
+
+Service detection performed. Please report any incorrect results at https://nmap.org/submit/ .
+Nmap done: 1 IP address (1 host up) scanned in 145.54 seconds
+```
+
+- Access Control & Trusted Relationships:
+    - Rely on trusted information sent from remote client to host machine.
+    - They use PAM for authentication
+    - Can be bypassed using `/etc/hosts.equiv` and `.rhosts`
+
+> Note: The hosts.equiv file is recognized as the global configuration regarding all users on a system, whereas .rhosts provides a per-user configuration.
+
+- Sample .rhosts:
+
+```bash
+LordA2117@htb[/htb]$ cat .rhosts
+
+htb-student     10.0.17.5
++               10.0.17.10
++               +
+```
+
+- Logging in using rlogin:
+
+```bash
+LordA2117@htb[/htb]$ rlogin 10.0.17.2 -l htb-student
+
+Last login: Fri Dec  2 16:11:21 from localhost
+
+[htb-student@localhost ~]$
+```
+
+- Listing authenticated users using rwho and rusers:
+
+```bash
+LordA2117@htb[/htb]$ rwho
+
+root     web01:pts/0 Dec  2 21:34
+htb-student     workstn01:tty1  Dec  2 19:57  2:25
+
+LordA2117@htb[/htb]$ rusers -al 10.0.17.5
+
+htb-student     10.0.17.5:console          Dec 2 19:57     2:25
+```
