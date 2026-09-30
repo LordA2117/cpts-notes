@@ -1492,3 +1492,99 @@ LordA2117@htb[/htb]$ rusers -al 10.0.17.5
 
 htb-student     10.0.17.5:console          Dec 2 19:57     2:25
 ```
+
+## Windows Remote Management Protocols
+
+### RDP
+
+- Supports SSL/TLS
+- Default on windows servers
+
+#### Footprinting The Service
+
+```bash
+$ nmap -sV -sC 10.129.201.248 -p3389 --script rdp*
+
+Starting Nmap 7.92 ( https://nmap.org ) at 2021-11-06 15:45 CET
+Nmap scan report for 10.129.201.248
+Host is up (0.036s latency).
+
+PORT     STATE SERVICE       VERSION
+3389/tcp open  ms-wbt-server Microsoft Terminal Services
+| rdp-enum-encryption: 
+|   Security layer
+|     CredSSP (NLA): SUCCESS
+|     CredSSP with Early User Auth: SUCCESS
+|_    RDSTLS: SUCCESS
+| rdp-ntlm-info: 
+|   Target_Name: ILF-SQL-01
+|   NetBIOS_Domain_Name: ILF-SQL-01
+|   NetBIOS_Computer_Name: ILF-SQL-01
+|   DNS_Domain_Name: ILF-SQL-01
+|   DNS_Computer_Name: ILF-SQL-01
+|   Product_Version: 10.0.17763
+|_  System_Time: 2021-11-06T13:46:00+00:00
+Service Info: OS: Windows; CPE: cpe:/o:microsoft:windows
+
+Service detection performed. Please report any incorrect results at https://nmap.org/submit/ .
+Nmap done: 1 IP address (1 host up) scanned in 8.26 seconds
+```
+
+- Using `--packet-trace`:
+
+```bash
+$ nmap -sV -sC 10.129.201.248 -p3389 --packet-trace --disable-arp-ping -n
+```
+
+- RDP Security Check:
+
+```bash
+$ sudo cpan
+$ git clone https://github.com/CiscoCXSecurity/rdp-sec-check.git && cd rdp-sec-check
+$ ./rdp-sec-check.pl 10.129.201.248
+```
+
+- Initiate RDP Session:
+
+```bash
+$ xfreerdp /u:cry0l1t3 /p:"P455w0rd!" /v:10.129.201.248
+```
+
+### WinRM
+
+- Ports: 5985, 5986
+
+#### Footprinting The Service
+
+- Nmap:
+
+```bash
+$ nmap -sV -sC 10.129.201.248 -p5985,5986 --disable-arp-ping -n
+```
+
+- Evil-WinRM:
+
+```bash
+$ evil-winrm -i 10.129.201.248 -u Cry0l1t3 -p P455w0rD!
+```
+
+### WMI
+
+- Windows Management Instrumentation
+- Port: 135
+
+#### Footprinting The Service
+
+- WMIexec.py:
+
+```bash
+$ /usr/share/doc/python3-impacket/examples/wmiexec.py
+Cry0l1t3:"P455w0rD!"@10.129.201.248 "hostname"
+
+Impacket v0.9.22 - Copyright 2020 SecureAuth Corporation
+
+[*] SMBv3.0 dialect used
+ILF-SQL-01
+```
+
+
