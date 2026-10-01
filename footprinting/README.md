@@ -1587,4 +1587,66 @@ Impacket v0.9.22 - Copyright 2020 SecureAuth Corporation
 ILF-SQL-01
 ```
 
+## Skill Assessments 
 
+### Easy
+
+- Objective: Read the `flag.txt` file.
+- In the question we are given credentials `ceil:qwer1234`.
+
+---
+
+- Find open ports with masscan (run 2-3 times for consistency):
+
+```bash
+sudo masscan -e tun0 10.129.138.119 -p 1-65535,U:1-65535 --rate=1000 > masscan.txt
+```
+
+- Open Ports: 21,22,53,2121
+- Port 21,2121: FTP
+- Port 22: SSH (only private key connection allowed)
+- Port 53: DNS
+- Connect to FTP 2121 (port 21 is running as root so no perms). This is hinted at by the banner `Ceil's FTP`.
+- The hint says to set specific perms for ssh_keys, so we'll extract the ssh keys.
+- `cd ..` after logging in to port 2121, and `ls .ssh/`, then `cd .ssh/` and `get id_rsa`.
+- Now do `chmod 600 id_rsa` and then `ssh -i id_rsa ceil@<ip>`
+- Read the flag from `/home/flag/flag.txt`
+
+### Medium
+
+- Objective: Obtain the credentials of the user `HTB`
+- Credentials: Only a username `HTB`
+
+---
+
+- Run masscan to get all open ports and run `nmap -sC -sV -A <ip> -p <discovered_ports> -o nmap.txt` to enumerate them.
+- Some interesting services we'll note here are port 111 (NFS) and port 3389 (rdp).
+- We can enumerate the RDP to find one completely accessible share which contains a lot of tickets. Most of these tickets are empty but one of them contains a chat log plus a set of credentials (find these by mounting the share and using `ls -la` within the share. The non-zero sizes are what we look for).
+- **Obtained Credentials**: `alex:lol123!mD`
+- Trying WinRM for this set of creds doesn't work but RDP works, so I login to RDP using these creds and `xfreerdp`.
+- Within this we can see `MS SQL Server Management Studio` but we can't login with our current credentials for now. However we can see a default user `sa`.
+- Looking through the `alex`'s home directory we can see a **devshare** folder, which contains some credentials for the user `sa`. 
+- **Obtained Credentials**: `sa:87N1ns@slls83`
+- However this doesn't allow us to log in. But we can try and stuff this password for the `Administrator` account.
+- **Obtained Credentials**: `Administrator:87N1ns@slls83`
+- On doing this we can again login to RDP and the SQL Server (because its using Windows Auth).
+- From here we just select the `dbo.devsacc` table and view its contents (right click it and select the first 1000 rows). Export this as csv, and then open it in notepad, where you can search for the `HTB` user.
+
+> **NOTE**: Though I just kind of wrote the solution here, I arrived at this by enumerating literally every single open port using the commands earlier in this module. This helps gain an understanding of that we're supposed to be attacking and what's useless. That's why I said port 111 and 3389 were interesting, but initially they were all at an equal level of priority for me.
+
+
+### Hard
+
+- We have an MX management server, it also has a backup server for the internal accounts in the domain.
+- Objective: Find the credentials of the `HTB` user.
+
+---
+
+- Run nmap UDP and TCP, to find Port 161 (snmp, udp) open and 110/995 (pop3, tcp), 143/993 (imap, tcp) open.
+- Use `onesixtyone` to enumerate community strings (use `/usr/share/wordlists/seclists/Discovery/SNMP/snmp.txt`).
+- Use `braa` to enumerate the SNMP.
+- We obtain these credentials `tom:NMds732Js2761`.
+- The pop3 login for these credentials reveals a message in the inbox. This contains an OpenSSH Private key.
+- Use this key to login to the server as tom `ssh -i privkey tom@<ip>`.
+- Do `ss -nltp` to find port 3306 open. Login to mysql with the credentials we have for `tom`.
+- Go into the `users` database and select the `users` table. This solves the question.
