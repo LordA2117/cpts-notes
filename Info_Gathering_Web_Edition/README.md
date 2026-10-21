@@ -443,3 +443,227 @@ LordA2117@htb[/htb]$ nikto -h inlanefreight.com -Tuning b
 1. Run nikto
 2. Use whatweb on the domain
 3. Use whatweb and see the apache server. It also reveals the IP.
+
+
+## Crawling
+
+- Automating the web browsing process
+- Types of Crawling:
+    - Breadth First Crawling
+    - Depth First Crawling
+
+## Robots.txt
+
+- A simple text file placed in the website root. It blocks bots (denoted as User-Agent) from crawling certain areas of the webpage. 
+
+### Structure
+
+- `User-Agent`: Which crawler or bot the following rules apply to. Wildcard indicates all bots.
+- `Directives`: Specific instructions to the identified user-agent.
+
+### Common Directives
+
+| Directive | Description | Example |
+| --- | --- | --- |
+| **Disallow** | Specifies paths or patterns that the bot should not crawl. | `Disallow: /admin/` — disallow access to the admin directory |
+| **Allow** | Explicitly permits the bot to crawl specific paths or patterns, even if they fall under a broader Disallow rule. | `Allow: /public/` — allow access to the public directory |
+| **Crawl-delay** | Sets a delay (in seconds) between successive requests from the bot to avoid overloading the server. | `Crawl-delay: 10` — 10-second delay between requests |
+| **Sitemap** | Provides the URL to an XML sitemap for more efficient crawling. | `Sitemap: https://www.example.com/sitemap.xml` |
+
+### Importance In Web Reconnaissance
+
+- Uncovering hidden directories
+- Mapping website structure
+- Detecting crawler traps
+
+### Analyzing robots.txt
+
+```
+User-agent: *
+Disallow: /admin/
+Disallow: /private/
+Allow: /public/
+
+User-agent: Googlebot
+Crawl-delay: 10
+
+Sitemap: https://www.example.com/sitemap.xml
+```
+
+- **/admin** and **/private** are disallowed to all
+- Googlebot is specifically instructed to wait 10s between every request
+- Sitemap (in `/sitemap.xml`) is provided for easier indexing
+
+## Well-Known URIs
+
+- Typically accessible via `/.well-known`
+
+| URI Suffix | Description | Status | Reference |
+| --- | --- | --- | --- |
+| `security.txt` | Contains contact information for security researchers to report vulnerabilities. | Permanent | RFC 9116 |
+| `/.well-known/change-password` | Provides a standard URL for directing users to a password change page. | Provisional | [W3C Specification](<https://w3c.github.io/webappsec-change-password-url/#the-change-password-well-known-uri>) |
+| `openid-configuration` | Defines configuration details for OpenID Connect, an identity layer on top of the OAuth 2.0 protocol. | Permanent | [OpenID Connect Discovery 1.0](<http://openid.net/specs/openid-connect-discovery-1_0.html>) |
+| `assetlinks.json` | Used for verifying ownership of digital assets (e.g., apps) associated with a domain. | Permanent | [Digital Asset Links Specification](<https://github.com/google/digitalassetlinks/blob/master/well-known/specification.md>) |
+| `mta-sts.txt` | Specifies the policy for SMTP MTA Strict Transport Security (MTA-STS) to enhance email security. | Permanent | RFC 8461 |
+
+
+### Web Recon And .well-known
+
+- `openid-configuration`: Provides a JSON document containing metadata about the provider's endpoints, supported auth methods, token issuance and more
+
+```javascript
+{
+  "issuer": "https://example.com",
+  "authorization_endpoint": "https://example.com/oauth2/authorize",
+  "token_endpoint": "https://example.com/oauth2/token",
+  "userinfo_endpoint": "https://example.com/oauth2/userinfo",
+  "jwks_uri": "https://example.com/oauth2/jwks",
+  "response_types_supported": ["code", "token", "id_token"],
+  "subject_types_supported": ["public"],
+  "id_token_signing_alg_values_supported": ["RS256"],
+  "scopes_supported": ["openid", "profile", "email"]
+}
+```
+
+1. Endpoint Discovery:
+- Authorization Endpoint: Identifying the URL for user authorization requests.
+- Token Endpoint: Finding the URL where tokens are issued.
+- Userinfo Endpoint: Locating the endpoint that provides user information.
+
+2. JWKS URI: The jwks_uri reveals the JSON Web Key Set (JWKS), detailing the cryptographic keys used by the server.
+3. Supported Scopes and Response Types: Understanding which scopes and response types are supported helps in mapping out the functionality and limitations of the OpenID Connect implementation.
+4. Algorithm Details: Information about supported signing algorithms can be crucial for understanding the security measures in place.
+
+> NOTE: Check the [IANA Registry](https://www.iana.org/assignments/well-known-uris/well-known-uris.xhtml) and mess around with some well-known uris.
+
+
+## Web Crawling
+
+1. BurpSuite Spider
+2. OWASP ZAP
+3. Scrapy (python)
+4. Apache Nutch
+
+
+- Installing scrapy:
+
+```bash
+LordA2117@htb[/htb]$ pip3 install scrapy
+```
+
+### ReconSpider
+
+```bash
+LordA2117@htb[/htb]$ wget -O ReconSpider.zip https://cdn.services-k8s.prod.aws.htb.systems/content/modules/144/ReconSpider.v1.2.zip
+LordA2117@htb[/htb]$ unzip ReconSpider.zip
+```
+
+- Usage:
+
+```bash
+LordA2117@htb[/htb]$ python3 ReconSpider.py http://inlanefreight.com
+```
+
+- result.json:
+
+```javascript
+{
+    "emails": [
+        "lily.floid@inlanefreight.com",
+        "cvs@inlanefreight.com",
+        ...
+    ],
+    "links": [
+        "https://www.themeansar.com",
+        "https://www.inlanefreight.com/index.php/offices/",
+        ...
+    ],
+    "external_files": [
+        "https://www.inlanefreight.com/wp-content/uploads/2020/09/goals.pdf",
+        ...
+    ],
+    "js_files": [
+        "https://www.inlanefreight.com/wp-includes/js/jquery/jquery-migrate.min.js?ver=3.3.2",
+        ...
+    ],
+    "form_fields": [],
+    "images": [
+        "https://www.inlanefreight.com/wp-content/uploads/2021/03/AboutUs_01-1024x810.png",
+        ...
+    ],
+    "videos": [],
+    "audio": [],
+    "comments": [
+        "<!-- #masthead -->",
+        ...
+    ]
+}
+```
+
+| JSON Key | Description |
+| --- | --- |
+| `emails` | Lists email addresses found on the domain. |
+| `links` | Lists URLs of links found within the domain. |
+| `external_files` | Lists URLs of external files, such as PDFs. |
+| `js_files` | Lists URLs of JavaScript files used by the website. |
+| `form_fields` | Lists form fields found on the domain (empty in this example). |
+| `images` | Lists URLs of images found on the domain. |
+| `videos` | Lists URLs of videos found on the domain (empty in this example). |
+| `audio` | Lists URLs of audio files found on the domain (empty in this example). |
+| `comments` | Lists HTML comments found in the source code. |
+
+
+### Exercise
+
+1. Just use ReconSpider (NOTE: Install scrapy before and also add the shebang for python3 to ReconSpider.py so that it works properly )
+
+
+## Search Engine Discovery
+
+### Search Operators
+
+| Operator | Operator Description | Example | Example Description |
+| --- | --- | --- | --- |
+| `site:` | Limits results to a specific website or domain. | `site:example.com` | Find all publicly accessible pages on example.com. |
+| `inurl:` | Finds pages with a specific term in the URL. | `inurl:login` | Search for login pages on any website. |
+| `filetype:` | Searches for files of a particular type. | `filetype:pdf` | Find downloadable PDF documents. |
+| `intitle:` | Finds pages with a specific term in the title. | `intitle:"confidential report"` | Look for documents titled "confidential report" or similar variations. |
+| `intext:` or `inbody:` | Searches for a term within the body text of pages. | `intext:"password reset"` | Identify webpages containing the term "password reset". |
+| `cache:` | Displays the cached version of a webpage, if available. | `cache:example.com` | View the cached version of a webpage to see its previous content. |
+| `link:` | Finds pages that link to a specific webpage. | `link:example.com` | Identify websites linking to example.com. |
+| `related:` | Finds websites related to a specific webpage. | `related:example.com` | Discover websites similar to example.com. |
+| `info:` | Provides a summary of information about a webpage. | `info:example.com` | Get basic details about example.com, such as its title and description. |
+| `define:` | Provides definitions of a word or phrase. | `define:phishing` | Get a definition of "phishing" from various sources. |
+| `numrange:` | Searches for numbers within a specific range. | `site:example.com numrange:1000-2000` | Find pages on example.com containing numbers between 1000 and 2000. |
+| `allintext:` | Finds pages containing all specified words in the body text. | `allintext:admin password reset` | Search for pages containing both "admin" and "password reset" in the body text. |
+| `allinurl:` | Finds pages containing all specified words in the URL. | `allinurl:admin panel` | Look for pages with "admin" and "panel" in the URL. |
+| `allintitle:` | Finds pages containing all specified words in the title. | `allintitle:confidential report 2023` | Find pages with "confidential," "report," and "2023" in the title. |
+| `AND` | Narrows results by requiring all terms to be present. | `site:example.com AND (inurl:admin OR inurl:login)` | Find admin or login pages specifically on example.com. |
+| `OR` | Broadens results by including pages with any of the terms. | `"linux" OR "ubuntu" OR "debian"` | Search for webpages mentioning Linux, Ubuntu, or Debian. |
+| `NOT` | Excludes results containing the specified term. | `site:bank.com NOT inurl:login` | Find pages on bank.com excluding login pages. |
+| `*` (wildcard) | Represents any character or word. | `site:socialnetwork.com filetype:pdf user* manual` | Search for user manuals, user guides, or user handbooks in PDF format on socialnetwork.com. |
+| `..` (range search) | Finds results within a specified numerical range. | `site:ecommerce.com "price" 100..500` | Look for products priced between 100 and 500 on an e-commerce website. |
+| `" "` (quotation marks) | Searches for exact phrases. | `"information security policy"` | Find documents mentioning the exact phrase "information security policy". |
+| `-` (minus sign) | Excludes terms from the search results. | `site:news.com -inurl:sports` | Search for news articles on news.com excluding sports-related content. |
+
+
+### Google Dorking
+
+- Google Search operators for recon
+
+
+## Web Archives
+
+- Stores archives and snapshots of pages on the internet.
+- It simply crawls, archives and allows the users to access the snapshots.
+- Visit it [here](https://web.archive.org/)
+
+- Uses:
+    - Uncovering Hidden Assets and Vulnerabilities
+    - Tracking Changes and Identifying Patterns
+    - Gathering Intelligence
+    - Stealthy Reconnaissance
+
+### Exercises
+
+1. 
