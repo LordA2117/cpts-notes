@@ -664,6 +664,10 @@ LordA2117@htb[/htb]$ python3 ReconSpider.py http://inlanefreight.com
     - Gathering Intelligence
     - Stealthy Reconnaissance
 
-### Exercises
+## Skills Assessment
 
-1. 
+1. `whois inlanefreight.com`
+2. `whatweb inlanefreight.htb` / use wappalyzer
+3. fuzz subdomains with `ffuf -u "http://<ip>:<port>" -w /usr/share/wordlists/seclists/Discovery/DNS/subdomains-top1million-110000.txt  -o ffuf-vhost-seclists-1million.json -H "Host: FUZZ.inlanefreight.htb"`
+4. fuzz more subdomains with `ffuf -u "http://154.57.164.66:31538" -w /usr/share/wordlists/seclists/Discovery/DNS/subdomains-top1million-110000.txt  -o ffuf-vhost-seclists-1million-<discovered_vhost>.json -H "Host: FUZZ.<discovered_vhost>.inlanefreight.htb"`. Then use `ReconSpider` to crawl the discovered vhost.
+5. Just look at the ReconSpider `results.json`.
