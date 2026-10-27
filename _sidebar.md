@@ -4,4 +4,5 @@
 - [Nmap Enumeration](nmap/README.md)
 - [Footprinting](footprinting/README.md)
 - [Information Gathering - Web Edition](Info_Gathering_Web_Edition/README.md)
+- [Vulnerability Assessment](Vulnerability_Assessment/README.md)
 - [Checklist](checklist.md)
