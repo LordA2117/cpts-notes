@@ -6,4 +6,5 @@
 - [Information Gathering - Web Edition](Info_Gathering_Web_Edition/README.md)
 - [Vulnerability Assessment](Vulnerability_Assessment/README.md)
 - [File Transfers](file_transfers/README.md)
+- [Shells And Payloads](shells_and_payloads/README.md)
 - [Checklist](checklist.md)
